@@ -6,9 +6,9 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Cogar_Assignments'
-copyright = '2025, ABulanti'
-author = 'ABulanti'
+project = 'Assignment_Cogar_Group_N'
+copyright = '2025, AmirMahdi Matin - Mahmoud M. A. Elderiny'
+author = 'AmirMahdi Matin - Mahmoud M. A. Elderiny'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -23,15 +23,5 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'alabaster'
 html_static_path = ['_static']
-
-html_show_sourcelink = False
-
-html_context = {
-    "display_github": True,
-    "github_user": "AleBulanti",
-    "github_repo": "Assignment_Cogar",
-    "github_version": "main",
-    "conf_py_path": "/docs/source/",
-}
