@@ -1,0 +1,3 @@
+<launch>
+  <param name="recipe" value="["cutting", "pouring", "cutting", "pouring", "mixing", "pouring]" />
+</launch>

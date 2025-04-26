@@ -1,0 +1,2 @@
+string[] steps
+bool[] status
