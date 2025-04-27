@@ -26,6 +26,7 @@ Assignment: Topic 3
 
 This is the description of the assignment
 
+
 The architecture
 ================
 
