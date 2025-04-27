@@ -12,7 +12,9 @@ class HumanCommandNode:
     
     Subscribes to:
         - /voice_command (std_msgs/String): Command from human.
-        - /step (std_msgs/String): Step of the recipe input.
+        - /step (std_msgs/String): Step of the recipe. It is the latest non validated step.
+        - /recipe_control (recipe_tracking/RecipeControl): list of the steps of the recipe with their associated validation status (validated or not).
+        - /plan (std_msgs/String): Generated plan based on the latest step and image.
         
     Publishes to:
         - /next_step (std_msgs/String): Next step based on the decision made.
@@ -30,13 +32,20 @@ class HumanCommandNode:
         # Subscribe to /step (String messages) to get the current step
         self.step_sub = rospy.Subscriber('/step', String, self.step_callback)
 
+        # Subscribe to /recipe_control (String messages) to get the status
+        self.recipe_sub = rospy.Subscriber('/recipe', String, self.recipe_callback)
+
+        # Subscribe to /plan (String messages) to get the current step
+        self.plan_sub = rospy.Subscriber('/plan', String, self.plan_callback)
+
         # Publisher for /command_status topic
         self.next_step_pub = rospy.Publisher('/next_step', String, queue_size=10)
 
-        # Store the latest plan step
         self.current_step = None
+        self.recipe_status = None
+        self.plan = None
 
-        rospy.loginfo("HumanCommandNode initialized and listening to /voice_command and /plan")
+        rospy.loginfo("HumanCommandNode initialized and listening to /voice_command, /plan, /recipe and /step")
 
 
     def command_callback(self, msg):
@@ -81,13 +90,35 @@ class HumanCommandNode:
 
     def step_callback(self, msg):
         """
-        Callback for /plan topic to update the current step.
+        Callback for /step topic to update the current step.
 
         :param msg: Incoming String message containing the current step.
         :type msg: std_msgs.msg.String
         """
-        rospy.loginfo(f"Received plan step: {msg.data}")
+        rospy.loginfo(f"Received current step: {msg.data}")
         self.current_step = msg.data
+
+    
+    def recipe_callback(self, msg):
+        """
+        Callback for /recipe topic to update the status.
+
+        :param msg: Incoming String message containing the current status.
+        :type msg: std_msgs.msg.String
+        """
+        rospy.loginfo(f"Received recipe status: {msg.data}")
+        self.recipe_status = msg.data
+
+    
+    def plan_callback(self, msg):
+        """
+        Callback for /plan topic to update the current plan.
+
+        :param msg: Incoming String message containing the plan.
+        :type msg: std_msgs.msg.String
+        """
+        rospy.loginfo(f"Received plan : {msg.data}")
+        self.plan = msg.data
 
 
     def is_command_valid(self, command):
