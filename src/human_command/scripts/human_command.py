@@ -79,7 +79,7 @@ class HumanCommandNode:
         rospy.loginfo(f"Published command status: {status_msg}")
 
 
-    def plan_callback(self, msg):
+    def step_callback(self, msg):
         """
         Callback for /plan topic to update the current step.
 
