@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
 
+"""
+.. module: recipe_tracking
+   :platform: unix
+   :synopsis: Python node to be described.
+
+.. moduleauthor:: Bertille Beaujean
+
+Description of the module recipe_tracking sphinx.
+
+"""
+
 import rospy
 import random
 from std_msgs.msg import String, Bool
@@ -15,11 +26,10 @@ class RecipeTrackingNode:
 
     Publishes to:
         - /step (std_msgs/String): Step of the recipe. It is the latest non validated step.
-        - /recipe_control (recipe_tracking/RecipeControl): list of the steps of the recipe with their associated validation status (validated or not).
     
     Attributes:
-        - current_step (str): It is the latest step of the recipe which is not validated yet.
-        - recipe_checklist (RecipeControl): list of the validation status of each step.
+        current_step (str): It is the latest step of the recipe which is not validated yet.
+        recipe_checklist (dictionary): list of the steps and their success status.
 
     """
 
@@ -31,9 +41,12 @@ class RecipeTrackingNode:
         rospy.init_node('recipe_tracking_node')
         
         # Initialize the cooking process
+<<<<<<< HEAD
         #recipe_steps = rospy.get_param("recipe",["cut", "cut", "mix", "end"])
         #self.recipe_checklist = { "steps": recipe_steps, "status": [False] * len (recipe_steps) }
         #self.current_step = self.recipe_checklist["steps"][0]
+=======
+>>>>>>> origin/main
         self.recipe_txt = rospy.get_param("recipe_txt")
         self.recipe_checklist, self.current_step = self.initialize_recipe(self.recipe_txt)
         
@@ -88,7 +101,11 @@ class RecipeTrackingNode:
         Check if the recipe is valid.
         
         :param recipe: recipe_checklist is the list of the steps to follow and their success status
+<<<<<<< HEAD
         :type recipe: list of (action (str), ingredient (str), success (str))
+=======
+        :type recipe: dictionary of (action (str), ingredient (str), success (str))
+>>>>>>> origin/main
         """
         if recipe["action"][-1] != "end":
             rospy.logerr('Recipe does not end with "end" step.')

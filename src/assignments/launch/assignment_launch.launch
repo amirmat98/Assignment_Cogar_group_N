@@ -1,0 +1,13 @@
+ <launch>
+ <node name="speaker_service" pkg="assignments" type="speaker_service.py" />
+<node name="arm_motion_service" pkg="assignments" type="arm_motion_service.py" />
+<node name="perception_server" pkg="assignments" type="perception_server.py" />
+<node name="path_planning_server" pkg="assignments" type="path_planning_server.py" />
+
+<param name="recipe_txt" value="$(find assignments)/recipes/recipe.txt" />
+
+<node name="recipe_tracking_node" pkg="recipe_tracking" type="recipe_tracking.py" />
+<node name="action_planning_node" pkg="action_planning" type="action_planning.py" />
+<node name="human_command_node" pkg="human_command" type="human_command.py" />
+
+ </launch>

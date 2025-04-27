@@ -1,0 +1,9 @@
+# goal
+string action
+string ingredient
+---
+# result
+bool success
+---
+# feedback
+string status

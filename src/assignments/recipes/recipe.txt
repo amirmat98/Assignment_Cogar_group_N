@@ -1,0 +1,6 @@
+cutting , carrots
+pouring , carrots
+cutting , leaks
+pouring , leaks
+mixing
+end
