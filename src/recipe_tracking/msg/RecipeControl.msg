@@ -1,2 +1,0 @@
-string[] steps
-bool[] status
