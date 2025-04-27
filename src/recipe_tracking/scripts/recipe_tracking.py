@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
+import random
 from std_msgs.msg import String, Bool
 
 class RecipeTrackingNode:
@@ -30,25 +31,91 @@ class RecipeTrackingNode:
         rospy.init_node('recipe_tracking_node')
         
         # Initialize the cooking process
-        #self.recipe_checklist = RecipeControl() # Need to initalize with the recipe at some point
-        recipe_steps = rospy.get_param("recipe",["cut", "cut", "mix", "end"])
-        self.recipe_checklist = { "steps": recipe_steps, "status": [False] * len (recipe_steps) }
-        self.current_step = self.recipe_checklist["steps"][0]
+        #recipe_steps = rospy.get_param("recipe",["cut", "cut", "mix", "end"])
+        #self.recipe_checklist = { "steps": recipe_steps, "status": [False] * len (recipe_steps) }
+        #self.current_step = self.recipe_checklist["steps"][0]
+        self.recipe_txt = rospy.get_param("recipe_txt")
+        self.recipe_checklist, self.current_step = self.initialize_recipe(self.recipe_txt)
         
+        #Check the validity of the recipe
+        if not self.is_a_valid_recipe(self.recipe_checklist) :
+            rospy.logerr("Recipe is not valid.")
+        else :
+            rospy.loginfo("Recipe is initialized and valid.")
+        	
+            # Subscribe to /goal_state (Bool messages)
+            self.goal_sub = rospy.Subscriber('/goal_state', Bool, self.goal_callback)
+            
+            # Publisher for /step topic
+            self.step_pub = rospy.Publisher('/step', String, queue_size=10)
         
-        
-        # Subscribe to /goal_state (Bool messages)
-        self.goal_sub = rospy.Subscriber('/goal_state', Bool, self.goal_callback)
-        
-        # Publisher for /step topic
-        self.step_pub = rospy.Publisher('/step', String, queue_size=10)
-        
-        # Publisher for /recipe_control topic
-        #self.rec_control_pub = rospy.Publisher('/recipe_control', RecipeControl, queue_size=10)
-        
-        rospy.loginfo("TrackNode initialized and listening to /goal_state")
+            # Publisher for /recipe_control topic
+            #self.rec_control_pub = rospy.Publisher('/recipe_control', RecipeControl, queue_size=10)
+		
+            rospy.loginfo("TrackNode initialized and listening to /goal_state")
 
+    def initialize_recipe(self, msg):
+        recipe_checklist = {
+                            "action": [],
+                            "ingredient": [],
+                            "success": []
+                            }
+        with open(msg,"r") as f:
+            for step in f:
+                action = None
+                ingredient = None
+                success = None
+                step_msg = [s.strip() for s in step.strip().split(",")]
+                if len(step_msg) > 0:
+                    action = step_msg[0]
+                if len(step_msg) > 1:
+                    ingredient = step_msg[1]
+                if len(step_msg) > 2: # notify if the recipe has too many parameters
+                    success = True
+                else:
+                    success = False
+                
+                recipe_checklist["action"].append(action)
+                recipe_checklist["ingredient"].append(ingredient)
+                recipe_checklist["success"].append(success)
+                
+                current_step = {"action":recipe_checklist["action"][0], "ingredient":recipe_checklist["ingredient"][0], "success":recipe_checklist["success"][0]}
 
+            return recipe_checklist, current_step
+        
+    def is_a_valid_recipe(self, recipe):
+        """
+        Check if the recipe is valid.
+        
+        :param recipe: recipe_checklist is the list of the steps to follow and their success status
+        :type recipe: list of (action (str), ingredient (str), success (str))
+        """
+        if recipe["action"][-1] != "end":
+            rospy.logerr('Recipe does not end with "end" step.')
+            return False
+        for action, ingredient, success in zip(recipe["action"], recipe["ingredient"], recipe["success"]):
+            if success != False:
+                rospy.logerr("Too many parameters were written for one step.")
+                return False
+            if action == "pouring":
+                if ingredient is None: # pouring has exactly one ingredient
+                    rospy.logerr("Pouring action requires exactly one ingredient.")
+                    return False
+            elif action == "mixing": 
+                if ingredient is not None: # cutting has no ingredient because it always mixes the same pot
+                    rospy.logerr("Mixing action requires exactly no ingredient.")
+                    return False
+            elif action == "cutting":
+                if ingredient is None: # cutting has exactly one ingredient
+                    rospy.logerr("Cutting action requires exactly one ingredient.")
+                    return False
+            elif action!="end" : # unknown action (note that ingredients might be unknown)
+                rospy.logerr("Recipe asking unknown action.")
+                return False
+        
+        return True
+        
+        
     def goal_callback(self, msg):
         """
         Callback for /goal_state topic. Updates the topics /step and /recipe_control according to the value of "/goal_state".
