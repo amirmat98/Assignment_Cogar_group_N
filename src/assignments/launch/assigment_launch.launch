@@ -1,0 +1,8 @@
+ <launch>
+ <node name="speaker_service" pkg="assignments" type="speaker_service.py" />
+<node name="arm_motion_service" pkg="assignments" type="arm_motion_service.py" />
+
+<node name="action_planning_node" pkg="action_planning" type="action_planning.py" />
+<node name="human_command_node" pkg="human_command" type="human_command.py" />
+
+ </launch>
