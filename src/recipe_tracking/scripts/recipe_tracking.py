@@ -1,39 +1,28 @@
 #!/usr/bin/env python3
 
 """
-.. module:: recipe_tracking
-   :platform: Unix
-   :synopsis: Node for managing and tracking recipe execution steps and validation status.
+.. module: recipe_tracking
+   :platform: unix
+   :synopsis: Python node to be described.
 
-.. moduleauthor:: Amirmahdi Matin
+.. moduleauthor:: Bertille Beaujean
 
-This module implements a ROS node that tracks the progress of a cooking recipe.
-It listens for the validation status of each recipe step, updates the list of completed steps,
-and publishes the current step to be performed.
-
-Features:
-- Reads and parses a recipe from a text file.
-- Validates the recipe structure and contents.
-- Monitors validation of each step via the `/goal_state` topic.
-- Publishes the current unvalidated step on the `/step` topic.
-- (Optional) Publishes the full recipe validation status (currently commented out).
+Python implementation of the architecture of the component "Recipe Tracking and Execution History", according to what is described in its behavioural diagrams.
 
 """
-import rospy # type: ignore
-import random
+
+import rospy
+import actionlib
 from std_msgs.msg import String, Bool
+from assignments.msg import stepAction, stepFeedback, stepResult, stepGoal
+import os
 
 class RecipeTrackingNode:
     """
     ROS node for recipe tracking and execution history.
-    It listens to the state of validation of the current goal state.
-    It publishes the current step of the recipe and the list of the steps of the recipe with their associated validation state (validated or not).
+    It implements the action client to send the goal step of the recipe to the Action Planner and get the success state of the step as result.
 
-    Subscribes to:
-        - /goal_state (std_msgs/Bool): Indicates whether the current goal step is validated or not.
-
-    Publishes to:
-        - /step (std_msgs/String): Step of the recipe. It is the latest non validated step.
+    Uses the action client \step_action.
     
     Attributes:
         current_step (str): It is the latest step of the recipe which is not validated yet.
@@ -44,12 +33,18 @@ class RecipeTrackingNode:
 
     def __init__(self):
         """
-        Initialize the Node, (set up subscriber and publishers).
+        Initialize the Node, (set up action client).
         """
         rospy.init_node('recipe_tracking_node')
         
+        # Get the current file's directory (where your script is located)
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        
+        # Build the path relative to current_dir
+        default_recipe_path = os.path.abspath(os.path.join(current_dir, "../../assignments/recipes/recipe.txt"))
+        
         # Initialize the cooking process
-        self.recipe_txt = rospy.get_param("recipe_txt")
+        self.recipe_txt = rospy.get_param("~recipe_txt", default_recipe_path)
         self.recipe_checklist, self.current_step = self.initialize_recipe(self.recipe_txt)
         
         #Check the validity of the recipe
@@ -57,19 +52,22 @@ class RecipeTrackingNode:
             rospy.logerr("Recipe is not valid.")
         else :
             rospy.loginfo("Recipe is initialized and valid.")
-        	
-            # Subscribe to /goal_state (Bool messages)
-            self.goal_sub = rospy.Subscriber('/goal_state', Bool, self.goal_callback)
             
-            # Publisher for /step topic
-            self.step_pub = rospy.Publisher('/step', String, queue_size=10)
-        
-            # Publisher for /recipe_control topic
-            #self.rec_control_pub = rospy.Publisher('/recipe_control', RecipeControl, queue_size=10)
-		
-            rospy.loginfo("TrackNode initialized and listening to /goal_state")
+            # Create the action client
+            self.step_client = actionlib.SimpleActionClient('/step_action', stepAction)
+            
+            rospy.loginfo("Waiting for /step_action action server...")
+            self.step_client.wait_for_server()
+            rospy.loginfo("/step_action action server available.")
+            
+            rospy.loginfo("RecipeTrackingNode initialized and ready.")
 
     def initialize_recipe(self, msg):
+        """
+        Creates the checklist of steps from the .txt version of the recipe, then initializes the current step of the recipe.
+        :param msg: recipe as a sequence of steps
+        :type msg: .txt (ros parameter)
+        """
         recipe_checklist = {
                             "action": [],
                             "ingredient": [],
@@ -77,9 +75,7 @@ class RecipeTrackingNode:
                             }
         with open(msg,"r") as f:
             for step in f:
-                action = None
-                ingredient = None
-                success = None
+                action, ingredient, success = None, None, None
                 step_msg = [s.strip() for s in step.strip().split(",")]
                 if len(step_msg) > 0:
                     action = step_msg[0]
@@ -100,7 +96,7 @@ class RecipeTrackingNode:
         
     def is_a_valid_recipe(self, recipe):
         """
-        Check if the recipe is valid.
+        Check if the recipe is valid. A recipe is valid if it ends with the "end" step and if every other step is made of one action (cutting, pouring, mixing) and an ingredient.
         
         :param recipe: recipe_checklist is the list of the steps to follow and their success status
         :type recipe: dictionary of (action (str), ingredient (str), success (str))
@@ -117,57 +113,54 @@ class RecipeTrackingNode:
                     rospy.logerr("Pouring action requires exactly one ingredient.")
                     return False
             elif action == "mixing": 
-                if ingredient is not None: # cutting has no ingredient because it always mixes the same pot
-                    rospy.logerr("Mixing action requires exactly no ingredient.")
+                if ingredient != "all": # mixing has ingredient "all" because it mixes "all" in the cooking pot
+                    rospy.logerr('Mixing action requires exactly "all" ingredient.')
                     return False
             elif action == "cutting":
                 if ingredient is None: # cutting has exactly one ingredient
                     rospy.logerr("Cutting action requires exactly one ingredient.")
                     return False
             elif action!="end" : # unknown action (note that ingredients might be unknown)
-                rospy.logerr("Recipe asking unknown action.")
+                rospy.logerr(f"Recipe asking unknown action: {action}.")
                 return False
         
         return True
         
-        
-    def goal_callback(self, msg):
+    def step_tracking(self):
         """
-        Callback for /goal_state topic. Updates the topics /step and /recipe_control according to the value of "/goal_state".
-        
-        :param msg: Validation or not of the current step of the recipe.
-        :type msg: std_msgs.msg.Bool
+        Tracks the cooking process with an action client to go from step to step in the recipe, send the current step it to the Action Planner and update the execution history when the Action Planner informs of the success of a step.
         """
-        rospy.loginfo(f"Received state of the step: {msg.data}")
-        if msg.data:
-            for i, (step_name, is_validated) in enumerate(zip(self.recipe_checklist["steps"], self.recipe_checklist["status"])):
-                if step_name == self.current_step:
-                    # Update the step history
-                    self.recipe_checklist["status"][i] = True
-                    rospy.loginfo(f"Step {self.current_step} is validated.")
-                    
-                    # Update the current step
-                    if i==len(self.recipe_checklist["status"])-1:
-                        self.current_step = "end"
-                    else:
-                        self.current_step = self.recipe_checklist["steps"][i+1]
-                    rospy.loginfo(f"New goal step is {self.current_step}")
-                    break
+        rate = rospy.Rate(50)
         
-        # Publish the current step
-        self.step_pub.publish(String(data=self.current_step))
-        
-        # Publish the step history
-        #recipe_msg = RecipeControl()
-        #recipe_msg.steps = self.recipe_checklist.steps
-        #recipe_msg.status = self.recipe_checklist.status
-        #self.rec_control_pub.publish(recipe_msg)
-        
+        while not rospy.is_shutdown() and self.current_step["action"] !="end" :
+            # Send the current step to ActionPlannerNode
+            goal = stepGoal(action=self.current_step["action"], ingredient=self.current_step["ingredient"])
+            rospy.loginfo(f'Sending step: {self.current_step["action"]} {self.current_step["ingredient"]}')
+            self.step_client.send_goal(goal)
+            
+            self.step_client.wait_for_result()
+            result = self.step_client.get_result()
+            
+            if result is not None and result.success:
+                # Update the execution history 
+                step_idx = next(i for i, s in enumerate(self.recipe_checklist["success"]) if not s) # Looks for the 1st step of the recipe which success is False (=not changed, would also work if [False, True, Abort] possibilities)
+                self.recipe_checklist["success"][step_idx] = True
+                rospy.loginfo(f'Step "{self.current_step["action"]} {self.current_step["ingredient"]}" validated in checklist.')
+                
+                # Go to the next step
+                self.current_step["action"] = self.recipe_checklist["action"][step_idx+1]
+                self.current_step["ingredient"] = self.recipe_checklist["ingredient"][step_idx+1]
+                rospy.loginfo("Processing to recipe's next step.")
+            else:
+                rospy.logwarn(f'Step "{self.current_step["action"]} {self.current_step["ingredient"]}" not successful. Waiting...')
+            rate.sleep()
+        rospy.loginfo("Recipe over.")
 
 
 if __name__ == '__main__':
     try:
-        RecipeTrackingNode()
+        node = RecipeTrackingNode()
+        node.step_tracking()
         rospy.spin()
     except rospy.ROSInterruptException:
         pass

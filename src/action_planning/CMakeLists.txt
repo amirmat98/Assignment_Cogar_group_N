@@ -9,9 +9,8 @@ project(action_planning)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   rospy
-  std_msgs
-  sensor_msgs
   actionlib
+  assignments
 )
 
 ## System dependencies are found with CMake's conventions
@@ -205,3 +204,8 @@ catkin_install_python(PROGRAMS
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest(tests/test_action_planning_node.test)
+endif()

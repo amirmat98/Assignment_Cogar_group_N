@@ -2,5 +2,5 @@ cutting , carrots
 pouring , carrots
 cutting , leaks
 pouring , leaks
-mixing
+mixing , all
 end

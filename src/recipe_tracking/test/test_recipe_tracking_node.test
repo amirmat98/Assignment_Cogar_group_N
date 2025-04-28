@@ -1,0 +1,5 @@
+<launch>
+  <param name="recipe_txt" value="$(find assignments)/recipes/recipe.txt" />
+  <node pkg="recipe_tracking" type="recipe_tracking.py" name="recipe_tracking_node" output="screen"/>
+  <test test-name="test_recipe_tracking_node" pkg="recipe_tracking" type="test_recipe_tracking_node.py" />
+</launch>

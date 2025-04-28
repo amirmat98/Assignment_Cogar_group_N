@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="action_planning" type="action_planning.py" name="action_planning_node" output="screen"/>
+  <test test-name="test_action_planning_node" pkg="action_planning" type="test_action_planning_node.py" />
+</launch>
