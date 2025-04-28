@@ -30,6 +30,9 @@ This is the description of the assignment
 The architecture
 ================
 
+The architecture2
+================
+
 The components
 ================
 
