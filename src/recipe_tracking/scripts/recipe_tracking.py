@@ -19,8 +19,7 @@ Features:
 - (Optional) Publishes the full recipe validation status (currently commented out).
 
 """
-
-import rospy
+import rospy # type: ignore
 import random
 from std_msgs.msg import String, Bool
 
