@@ -5,7 +5,7 @@
    :platform: unix
    :synopsis: Python node to be described.
 
-.. moduleauthor:: Bertille Beaujean
+.. moduleauthor:: Amirmhadi Matin
 
 Python implementation of the architecture of the component "Recipe Tracking and Execution History", according to what is described in its behavioural diagrams.
 

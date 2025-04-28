@@ -5,7 +5,7 @@
    :platform: Unix
    :synopsis: Handles execution of recipe steps through object perception and path planning.
 
-.. moduleauthor:: Paul Pham Dang
+.. moduleauthor:: Amirmahdi Matin
 
 ROS node that coordinates execution of recipe steps:
 
