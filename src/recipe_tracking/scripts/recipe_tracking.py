@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 
 """
-.. module: recipe_tracking
-   :platform: unix
-   :synopsis: Python node to be described.
+.. module:: recipe_tracking
+   :platform: Unix
+   :synopsis: Node for managing and tracking recipe execution steps and validation status.
 
-.. moduleauthor:: Bertille Beaujean
+.. moduleauthor:: Amirmahdi Matin
 
-Description of the module recipe_tracking sphinx.
+This module implements a ROS node that tracks the progress of a cooking recipe.
+It listens for the validation status of each recipe step, updates the list of completed steps,
+and publishes the current step to be performed.
+
+Features:
+- Reads and parses a recipe from a text file.
+- Validates the recipe structure and contents.
+- Monitors validation of each step via the `/goal_state` topic.
+- Publishes the current unvalidated step on the `/step` topic.
+- (Optional) Publishes the full recipe validation status (currently commented out).
 
 """
 

@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 
 """
-.. module: human_command
-   :platform: unix
-   :synopsis: Python node to be described.
+.. module:: human_command
+   :platform: Unix
+   :synopsis: Node for interpreting and validating human voice commands during recipe execution.
 
-.. moduleauthor:: Emma Royant
+.. moduleauthor:: Amirmahdi Matin
 
-Description of the module human_command sphinx.
-
+This module implements a ROS node that listens to voice commands during a cooking task.
+It processes and interprets incoming commands, checks them against the current cooking plan,
+and determines whether they can be accepted, modified, or rejected.
+Feedback is provided to the user through a speaker service, and updates are published to the next step topic.
 """
+
 
 import rospy
 from std_msgs.msg import String
@@ -18,64 +21,54 @@ import random
 
 class HumanCommandNode:
     """
-    ROS node that listens to verbal commands and evaluates their validity
-    based on the current cooking plan.
+    ROS node that processes human verbal commands and determines their validity
+    according to the current cooking plan.
     
-    Subscribes to:
-        - /voice_command (std_msgs/String): Command from human.
-        - /step (std_msgs/String): Step of the recipe. It is the latest non validated step.
-        - /recipe_control (recipe_tracking/RecipeControl): list of the steps of the recipe with their associated validation status (validated or not).
-        - /plan (std_msgs/String): Generated plan based on the latest step and image.
-        
-    Publishes to:
-        - /next_step (std_msgs/String): Next step based on the decision made.
-    """
+    Subscriptions:
+        - /voice_command (std_msgs/String): Receives commands spoken by the user.
+        - /step (std_msgs/String): Represents the most recent, non-validated step in the recipe.
+        - /recipe_control (recipe_tracking/RecipeControl): Tracks the recipe's steps along with their validation statuses.
+        - /plan (std_msgs/String): Provides the generated plan based on the latest step and image.
 
+    Publications:
+        - /next_step (std_msgs/String): Publishes the next step to execute, based on the processed decision.
+    """
     def __init__(self):
         """
-        Initialize the Node, set up subscribers and publisher.
+        Initializes the node and configures all subscribers and publishers.
         """
+        # Initialize the ROS node
         rospy.init_node('human_command_node')
-
         # Subscribe to /voice_command (String messages)
         self.command_sub = rospy.Subscriber('/voice_command', String, self.command_callback)
-
         # Subscribe to /step (String messages) to get the current step
         self.step_sub = rospy.Subscriber('/step', String, self.step_callback)
-
         # Subscribe to /recipe_control (String messages) to get the status
         self.recipe_sub = rospy.Subscriber('/recipe', String, self.recipe_callback)
-
         # Subscribe to /plan (String messages) to get the current step
         self.plan_sub = rospy.Subscriber('/plan', String, self.plan_callback)
-
         # Publisher for /command_status topic
         self.next_step_pub = rospy.Publisher('/next_step', String, queue_size=10)
-
         self.current_step = None
         self.recipe_status = None
         self.plan = None
-
-        rospy.loginfo("HumanCommandNode initialized and listening to /voice_command, /plan, /recipe and /step")
-
+        rospy.loginfo("HumanCommandNode is up and subscribed to /voice_command, /plan, /recipe, and /step topics.")
 
     def command_callback(self, msg):
         """
-        Callback for /voice_command topic.
-        
-        :param msg: Incoming String message containing the vocal command.
+        Handles incoming messages from the /voice_command topic.
+
+        :param msg: String message containing the received voice command.
         :type msg: std_msgs.msg.String
         """
         
         rospy.loginfo(f"Received command: {msg.data}")
         command = msg.data.lower()
-
         if self.current_step is None:
             status_msg = "Command rejected: No current plan step available."
             self.notify_user(status_msg)
             rospy.loginfo(f"Published command status: {status_msg}")
             return
-
         # Simulate command interpretation
         interpreted_command = self.interpret_command(command)
 
@@ -101,36 +94,33 @@ class HumanCommandNode:
 
     def step_callback(self, msg):
         """
-        Callback for /step topic to update the current step.
+        Handles incoming messages from the /step topic to update the current recipe step.
 
-        :param msg: Incoming String message containing the current step.
+        :param msg: String message containing the latest unvalidated step.
         :type msg: std_msgs.msg.String
         """
         rospy.loginfo(f"Received current step: {msg.data}")
         self.current_step = msg.data
 
-    
     def recipe_callback(self, msg):
         """
-        Callback for /recipe topic to update the status.
+        Processes messages from the /recipe topic to update the recipe status.
 
-        :param msg: Incoming String message containing the current status.
+        :param msg: String message containing the current validation status of the recipe steps.
         :type msg: std_msgs.msg.String
         """
         rospy.loginfo(f"Received recipe status: {msg.data}")
         self.recipe_status = msg.data
 
-    
     def plan_callback(self, msg):
         """
-        Callback for /plan topic to update the current plan.
+        Handles incoming messages from the /plan topic to update the current execution plan.
 
-        :param msg: Incoming String message containing the plan.
+        :param msg: String message containing the updated plan information.
         :type msg: std_msgs.msg.String
         """
         rospy.loginfo(f"Received plan : {msg.data}")
         self.plan = msg.data
-
 
     def is_command_valid(self, command):
         """

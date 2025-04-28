@@ -3,17 +3,17 @@
 """
 .. module:: action_planning_node
    :platform: Unix
-   :synopsis: Handles execution of recipe steps through object perception and path planning.
+   :synopsis: Coordinates recipe step execution by integrating object detection and path planning.
 
 .. moduleauthor:: Amirmahdi Matin
 
-ROS node that coordinates execution of recipe steps:
-- Receives steps via an action server
-- Uses a perception service to check for required objects
-- Sends valid steps to a path planning action server
-- Uses a speaker service to handle and announce conflicts
-
+This ROS node manages the execution flow of recipe steps by:
+- Accepting steps through an action server
+- Verifying object availability using a perception service
+- Forwarding executable steps to a path planning action server
+- Announcing missing objects and conflicts via a speaker service
 """
+# Import necessary libraries
 
 import rospy
 import random
@@ -25,55 +25,47 @@ from assignments.msg import stepAction, stepFeedback, stepResult, stepGoal
 
 class ActionPlanningNode:
     """
-    Class representing the action planning ROS node. Handles incoming steps,
-    checks object availability, resolves conflicts, and sends commands to a path planning server.
+    Defines the action planning ROS node, which manages incoming steps by checking object presence,
+    resolving conflicts when necessary, and sending tasks to the path planning server for execution.
     """
 
     def __init__(self):
         """
-        Initializes the node, sets up action servers and clients, and initializes state variables.
+        Sets up the ActionPlanningNode by initializing the ROS environment,
+        configuring action servers and clients, and preparing internal data structures
+        for tracking pending and completed steps.
         """
+        # Initialize the ROS node
         rospy.init_node('action_planning_node')
-
         # Action server to receive steps
-        self.server = actionlib.SimpleActionServer(
-            '/step_action',
-            stepAction,
-            execute_cb=self.execute_callback,
-            auto_start=False
-        )
+        self.server = actionlib.SimpleActionServer('/step_action', stepAction, execute_cb=self.execute_callback, auto_start=False)
         self.server.start()
-
         # Action client to send steps to the path planner
         self.path_planning_client = actionlib.SimpleActionClient('/path_planning', stepAction)
         rospy.loginfo("Waiting for /path_planning action server...")
         self.path_planning_client.wait_for_server()
         rospy.loginfo("/path_planning action server available.")
-
         # Stack of steps and completed steps
         self.stack_step = []
         self.steps_done = []
-
         rospy.loginfo("ActionPlanningNode initialized and ready.")
 
     def execute_callback(self, goal):
         """
-        Callback triggered when a step is received on the /step_action action server.
+        Callback function invoked when a new step is received through the /step_action action server.
 
-        :param goal: stepGoal object containing the action and ingredient
+        :param goal: A stepGoal message containing the specified action and associated ingredient.
         :type goal: assignments.msg.stepGoal
         """
+        # Initialize feedback and result messages
         feedback = stepFeedback()
         result = stepResult()
         new_step = f"{goal.action} {goal.ingredient}"
-
-        rospy.loginfo(f"[New Step] {new_step}")
+        rospy.loginfo(f"[New step received] {new_step}")
         feedback.status = f"Received step: {new_step}"
         self.server.publish_feedback(feedback)
-
         # Push the new step to the stack
         self.stack_step.append(new_step)
-
         while self.stack_step:
             step = self.stack_step[-1]  # Peek at the top
             rospy.loginfo(f"[Stack Peek] {step}")
@@ -105,7 +97,6 @@ class ActionPlanningNode:
             goal_msg = stepGoal()
             goal_msg.action = action
             goal_msg.ingredient = ingredient
-
             self.path_planning_client.send_goal(goal_msg)
             self.path_planning_client.wait_for_result()
             path_result = self.path_planning_client.get_result()
@@ -129,15 +120,16 @@ class ActionPlanningNode:
 
     def check_object_availability(self, obj, feedback):
         """
-        Checks if the required object is available using the /perception service.
+        Verifies the availability of the specified object through the /perception service.
 
-        :param obj: Object to check
+        :param obj: The name of the object to be verified.
         :type obj: str
-        :param feedback: stepFeedback to update the client
+        :param feedback: stepFeedback message used to update the client about the check status.
         :type feedback: assignments.msg.stepFeedback
-        :return: True if object is found, False otherwise
+        :return: True if the object is detected; otherwise, False.
         :rtype: bool
         """
+
         try:
             rospy.wait_for_service('/perception', timeout=5)
             perception = rospy.ServiceProxy('/perception', Perception)
@@ -151,11 +143,12 @@ class ActionPlanningNode:
 
     def announce_conflict(self, obj):
         """
-        Uses the /speaker service to announce that an object is missing.
+        Utilizes the /speaker service to notify that a required object is not found.
 
-        :param obj: Name of the missing object
+        :param obj: The name of the missing object.
         :type obj: str
         """
+        rospy.loginfo(f"Announcing conflict for object: {obj}")
         try:
             rospy.wait_for_service('/speaker', timeout=5)
             speaker = rospy.ServiceProxy('/speaker', Speaker)
@@ -165,13 +158,14 @@ class ActionPlanningNode:
 
     def resolve_conflict(self, obj):
         """
-        Attempts to resolve a missing object conflict by retrying perception after a delay.
+        Tries to resolve a missing object issue by reattempting object detection after a short delay.
 
-        :param obj: Object to check again
+        :param obj: The object to be rechecked.
         :type obj: str
-        :return: True if object becomes available, False otherwise
+        :return: True if the object is found after retrying; False otherwise.
         :rtype: bool
         """
+        # Simulate manual correction time
         rospy.loginfo(f"Attempting to resolve conflict for: {obj}")
         rospy.sleep(2)  # Simulate manual correction time
 
