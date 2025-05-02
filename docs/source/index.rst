@@ -8,18 +8,7 @@ Assignment_Cogar_Group_N's documentation!
 
 - AmirMahdi Matin, 5884715
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
 Assignment: Topic 3
 =====================================
@@ -27,9 +16,15 @@ Assignment: Topic 3
 This is the description of the assignment
 
 
-The architecture
-================
 
-The components
-================
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+   
+   Architecture <architecture.rst>
+   Behevioural <behavioural.rst>
+   Test <test.rst>
+
+
+
 
