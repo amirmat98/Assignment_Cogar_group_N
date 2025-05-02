@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="human_command" type="human_command.py" name="human_command_node" output="screen"/>
+  <node name="speaker_service" pkg="assignments" type="speaker_service.py" output="screen" />
+  <test test-name="test_human_command_node" pkg="human_command" type="test_human_command_node.py" />
+</launch>
