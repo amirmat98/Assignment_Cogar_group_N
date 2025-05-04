@@ -10,97 +10,116 @@ This page provides an overview of the software architecture, detailing each majo
    :width: 100%
    :height: 576px
 
-Let's now take a brief look at each component to better understand their application, and analyze which design patterns could be adopted to achieve the best implementation for each of them.
+Below we briefly examine every component, explaining its purpose and noting suitable design patterns that can lead to a clean, maintainable implementation.
 
-The global architecture of the system is described by the following :ref:`component diagram <uml-c>`. 
-The robot is equipped with various sensors and services, such as an RGB-D Camera, LiDAR, SONAR, force sensors, microphones, and speakers. The architecture is designed so that these components work together seamlessly to support the meal preparation process.
+The overall structure of the system is illustrated in the following component diagram.  
+The robot carries several sensors and services—an RGB‑D camera, LiDAR, SONAR, force sensors, microphones, and speakers. The architecture lets these parts collaborate seamlessly so the robot can prepare meals.
 
-The process begins with the **Recipe Tracking and Execution History Subsystem** and the **Human Command Monitoring and Conflict Resolution Subsystem**. The Recipe Tracking Subsystem maintains an internal representation of the recipe and the sequence of actions performed, ensuring that each step is followed correctly. The Human Command Monitoring Subsystem captures verbal commands from the user through microphones and evaluates their alignment with the meal preparation plan. It resolves any conflicts, ensuring the robot can adapt to user input while maintaining task integrity.
+The workflow starts with the **Recipe Tracking** and the **Human Command Monitoring**.  
+* **Recipe Tracking** stores the internal representation of the recipe and logs the sequence of actions, guaranteeing each step is respected.  
+* **Human Command Monitoring** captures spoken instructions via the microphones and checks whether they align with the current plan, resolving conflicts so the robot can obey the user without jeopardising the task.
 
-Both of these subsystems feed information to the **Action Planning Subsystem**, which determines the next steps based on the current state of meal preparation and the history of actions taken. This planning is dynamic, adjusting to unexpected conditions or verbal commands from the user.
+Both subsystems forward information to the **Action Planning Subsystem**, which selects the next step according to the current state and past actions. The planner adapts dynamically to unexpected situations or fresh user commands.
 
-Once the Action Planning Subsystem decides on the next action, it relies on the **Perception Subsystem** to execute it. The Perception Subsystem uses the RGB-D Camera to capture depth and RGB images, allowing it to map the environment in real-time and recognize objects. This data is crucial for the **Navigation Subsystem**, which plans efficient and obstacle-free paths using LiDAR for precise navigation and SONAR for measuring distances.
+Once a new action is chosen, the planner relies on the **Perception Subsystem** to carry it out. Perception uses the RGB‑D camera to build a real‑time map and recognise objects. These data are essential to the **Navigation Subsystem**, which computes safe, efficient paths using LiDAR for precision and SONAR for range sensing.
 
-Finally, the **Robot Subsystem** comes into play, using force sensors and arm joints to handle tools and ingredients with precision. This subsystem executes the commands decided by the Action Planning Subsystem, ensuring that the robot can navigate the environment, recognize and manipulate objects, and interact with the user to ensure a smooth and safe meal preparation process.
-
-Throughout this process, the subsystems work together, sharing data and coordinating actions to provide a cohesive and adaptive system for meal preparation assistance.
-
+Finally, the **Robot Subsystem** executes the plan with force‑sensing arms and joints that manipulate tools and ingredients precisely. In concert, these subsystems allow the robot to move, perceive, act, and interact with people throughout the meal‑preparation process.
 
 -------------------------------------------------------------
-Design Patterns in Meal Preparation Assistance Architecture
+Design Patterns
 -------------------------------------------------------------
 
-Design patterns provide proven solutions to common software design challenges, enhancing the flexibility and maintainability of systems. In the context of a TIAGo robot assisting with meal preparation, several design patterns can be effectively applied:
+.. list-table::
+   :widths: 20 20 40
+   :header-rows: 1
 
-- **Singleton Pattern**: Implement the **Recipe Tracking and Execution History Subsystem** as a Singleton to ensure a single, consistent instance that all components can access. This prevents conflicts and maintains data integrity.
-
-- **Adapter Pattern**: Use adapters in the **Perception Subsystem** to convert data from various sensors (e.g., RGB-D Camera, LiDAR) into a unified format. This allows seamless integration with the **Navigation** and **Robot Subsystems**, enhancing flexibility.
-
-- **Command Pattern**: Encapsulate user commands in the **Human Command Monitoring and Conflict Resolution Subsystem** as command objects. This allows for flexible handling, queuing, and logging of commands, decoupling user input from action execution.
-
-- **Mediator Pattern**: Implement a mediator to centralize communication between subsystems like **Recipe Tracking**, **Action Planning**, and **Robot Subsystems**. This reduces complexity and ensures coordinated interactions.
-
-- **Observer Pattern**: Use the Observer Pattern in the **Recipe Tracking Subsystem** to notify other subsystems of changes in recipe state, ensuring real-time synchronization across components.
-
-- **Strategy Pattern**: Apply the Strategy Pattern in the **Action Planning Subsystem** to dynamically select different planning algorithms based on the current state or user preferences, enhancing adaptability.
+   * - Subsystem
+     - Design Pattern(s)
+     - Purpose
+   * - Recipe Tracking
+     - Singleton, Observer
+     - Centralised recipe state
+   * - Human Command
+     - Command, Adapter, Strategy
+     - Modular voice‑command processing
+   * - Action Planning
+     - Strategy, Mediator
+     - Real‑time plan adaptation
+   * - Perception
+     - Adapter, Singleton
+     - Uniform sensor interface
+   * - Robot State
+     - State, Mediator
+     - Dynamic robot behaviour
+   * - Navigation
+     - Adapter
+     - Reconcile LiDAR and SONAR data
+   * - Motion / Gripper / Speaker
+     - Singleton, Adapter
+     - Hardware control interfaces
 
 
 -----------------
 Recipe tracking
 -----------------
 
-The **recipe tracking and execution history** component is a subsystem that incorporates other components and artifacts which together are responsible for tracking the recipe to be cooked and its progress status through connections with the :doc:`action planning <action_planning>` e :doc:`human command <human_command>`. Within this subsystem, all components are connected to their corresponding artifacts, which represent tangible resources within the system. Each artifact is updated based on the activation of its component, and some artifacts are also used to trigger other internal components. 
+The **recipe tracking and execution history** subsystem bundles components and artefacts that monitor the active recipe and its progress. It communicates with **action planning** and **human command** through dedicated ports.  
+Each artefact is updated by its component, and some artefacts in turn trigger internal behaviour.
 
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+Two ports remain unconnected internally; they act as entry and exit points for the error handler, which oversees recovery procedures.
 
 .. rubric:: Implementation through patterns
 
-The **recipe** component must be implemented using the **singleton** pattern, since the robot can cook only one recipe at a time. Therefore, multiple instances of a recipe cannot exist simultaneously, as that would imply the robot could cook multiple recipes at the same time.
+Because the robot can handle only one recipe at a time, implement the **recipe** component as a **singleton**.
 
 -----------------
 Action planning
 -----------------
 
-Every 100 ms the planner starts a new cycle by reading data from various channels and checking for unexpected conditions. If the recipe has failed, it signals an error and reboots the system; otherwise, it updates the best next action. If the recipe is finished, it notifies completion; if not, it updates ongoing actions, commands the robots, and ends the cycle.
+Every 100 ms the planner runs a new cycle:
 
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+#. Read data from the various channels.  
+#. Detect failures; if one occurs, signal an error and reboot.  
+#. If the recipe has finished, announce completion; otherwise update the best next action.  
+#. Dispatch commands to the robot and conclude the cycle.
+
+As above, two ports are reserved for the error handler.
 
 .. rubric:: Implementation through patterns
 
-The **update best action** component can be implemented using the **strategy** design pattern. This pattern is a behavioral design pattern that allows selecting an algorithm at runtime. Rather than implementing a single fixed algorithm, the system can choose from a family of predefined strategies based on the context. In our case, depending on the input received by the component, it determines and applies the most appropriate action to execute.
+Implement the **update best action** component with the **strategy** pattern, selecting among multiple planning algorithms according to the current context.
 
 
 -----------------
 Human command
 -----------------
 
-The planner continuously listens for human commands through the "Microphones" component, generating an "Audio Track" variable and evaluating whether an interaction has occurred. If there is no interaction, the cycle stops; if there is, it processes the message through the "Interpreter" component. If the message is not a valid sentence, the system asks the user to repeat it. Once a valid sentence is interpreted, the system checks if it's the first interaction and whether ingredients have been shown. Depending on the input, it either requests a recipe or ingredient list and attempts to connect to Wi-Fi. If Wi-Fi connection fails, it signals an error; if successful, it searches for a recipe or proposes a some recipes based on available ingredients.
+The planner continuously listens for speech via the **Microphones** component, producing an *Audio Track* variable and deciding whether interaction occurred.  
+* When no interaction is detected the loop ends.  
+* Otherwise, the **Interpreter** parses the message.  
+* Invalid sentences trigger a prompt to repeat.  
+* A valid sentence is checked to determine whether it is the first interaction and whether ingredients have been shown.  
+* Depending on the outcome the system requests a recipe, requests an ingredient list, and tries to connect to Wi‑Fi.  
+* Failure to connect raises an error.  
+* Success leads to an online recipe search or the suggestion of recipes based on available ingredients.
 
-During recipe execution, the system can accept verbal commands. It validates these commands and, if valid, updates the recipe history and provides appropriate responses. The robot's state is updated by the "High Level Action" component, ensuring that each step is executed according to the latest recipe information.
+During execution the system accepts runtime voice commands, validates them, updates the recipe history, and responds verbally. The **High Level Action** component keeps the robot’s state in sync with the latest recipe info.
 
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+Again, two ports are delegated to the error handler.
 
 .. rubric:: Implementation through patterns
 
-First, the **Wi-Fi connection** manager component should be implemented as a **singleton** pattern, as there must be only one object responsible for handling internet requests, such as searching for recipes or proposals. This design choice is justified by the fact that there is only one physical Wi-Fi device available, and creating multiple instances could lead to consistency issues.
-
-Next, to connect the **microphone** to the **interpreter**, we need an interface that handles the microphone's output data and adapts it so that the interpreter component can correctly process it in the input format it expects. To achieve this, we need to apply the **adapter** pattern.
-
-As we mentioned in the previous component, the **strategy** pattern is a behavioral design pattern that enables the selection of an algorithm at runtime. In our case, the entire flow starting from the **evaluate** component can be represented using the Strategy pattern, since the behavior changes dynamically based on the user's request. For example:
-
--  If the user asks for a new recipe, the system needs to search online.
--  If the user requests new suggestions based on the ingredients they have at home, the system must search accordingly.
--  If the user issues a voice command, the robot needs to execute it.
-
-Each of these actions represents a different strategy that can be selected and executed at runtime.
+* **Wi‑Fi connection** manager → **singleton** (only one network interface exists).  
+* **Microphone to Interpreter** bridge → **adapter**.  
+* Post‑interpretation decision flow → **strategy**.
 
 -----------------
 Perception
 -----------------
 
-The **perception** component includes a module for the **camera**, which collects visual information from the robot. Through the **object recognition** and **object tracking** components, it analyzes the images to recognize and track objects, exposing these functionalities to various components that require them, such as the :doc:`navigation<navigation>`.
+The **perception** component includes a module for the **camera**, which collects visual information from the robot. Through the **object recognition** and **object tracking** components, it analyzes the images to recognize and track objects, exposing these functionalities to various components that require them, such as the **navigation**.
 
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the error handler component, which will manage any recovery procedures.
 
 .. rubric:: Implementation through patterns
 
@@ -108,13 +127,13 @@ Similarly, the **camera** component will be implemented using the **singleton** 
 
 Additionally, in order to communicate with the component responsible for **object recognition**, the **camera** component must use the **adapter** pattern to ensure data consistency during exchanges.
 
-The **planner high level** component is responsible for translating the actions received from the :doc:`action planning<action_planning>` module into actual commands for the robot. It manages the :doc:`navigation<navigation>` component, which, based on the known map and the task to be performed, determines the optimal path for the :doc:`motion<motion>` module to follow or the specific actions to be executed by the :doc:`Gripper<gripper>`.
+The **planner high level** component is responsible for translating the actions received from the **actino_planning** module into actual commands for the robot. It manages the **navigation** component, which, based on the known map and the task to be performed, determines the optimal path for the **motion** module to follow or the specific actions to be executed by the **gripper**.
 
 Additionally, there is an artifact that keeps track of the **robot's current state** for example, states like cutting, cooking, grabbing, and so on. The robot's state dynamically updates according to the current situation.
 
-Finally, there is a component that monitors the robot’s **battery level**. This component is responsible for managing the charge status and the :doc:`error handler <error_handler>` will send a vocal warning signal when the battery is running low.
+Finally, there is a component that monitors the robot’s **battery level**. This component is responsible for managing the charge status and the error handler will send a vocal warning signal when the battery is running low.
 
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the error handler component, which will manage any recovery procedures.
 
 .. rubric:: Implementation through patterns
 
@@ -129,57 +148,52 @@ Since this component plays a key role by centralizing the management of hardware
 Navigation
 -----------------
 
-The **navigation** component is used to create and manage the environment map through the connected sensors, saving it via the artifact linked to the **SLAM** component.
+The **navigation** subsystem builds and maintains the environment map through connected sensors, persisting it via the **SLAM** artefact.
 
-The **trajectory planning** component is responsible for generating the path that the robot must follow based on the actions received from the :doc:`planner<planner>` module. To do this, it requires data from other modules, such as :doc:`perception<perception>` for obstacle detection and tracking, :doc:`motion<motion>` for wheel encoder data, and :doc:`gripper<gripper>` for gripper encoder feedback. If the planner's command involves moving the robot base, the trajectory planner will generate an optimal path and send velocity commands to the wheels. If, instead, the command involves moving the robotic arm, the component will generate a sequence of actions for the arm to reach the target goal.
-| With the integration of **LIDAR** and **SONAR** sensors, the component can build and continuously update a 360-degree map of the environment.
+The **trajectory planning** component:
 
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+* Generates a path for the robot base or arm based on commands from the **planner**,
+* Consults **perception** for obstacle data,
+* Uses **motion** and **gripper** encoder feedback,
+* Employs **LiDAR** and **SONAR** to maintain a 360‑degree view of the surroundings.
+
+Two ports are dedicated to the error handler.
 
 .. rubric:: Implementation through patterns
 
-To connect the **SLAM** component to the two internal sensors, LIDAR and SONAR, it is necessary to implement them using the **adapter** pattern, in order to make the exchanged data compatible and allow SLAM to manage them properly.
-
+Connect **SLAM** to **LiDAR** and **SONAR** with **adapter** objects to reconcile differing data formats.
 
 -----------------
 Robot
 -----------------
 
-The **motion** component is used to manage, as the name suggests, the robot's navigation through the **encoders**, **controllers**, and **motors** of both wheels. The **controllers** components will receive the speed signal to be set for the wheels from the module **trajectory planning** within the :doc:`navigation<navigation>`.
+**Motion** controls navigation through wheel **encoders**, **controllers**, and **motors**. Controllers receive speed set‑points from **trajectory planning** inside **navigation**.
 
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
-
-.. rubric:: Implementation through patterns
-
-As previously mentioned for the :doc:`gripper<gripper>`, the **motor controllers** in the motion component will also be implemented using the **singleton** pattern, since multiple instances of the same controller are not allowed.
-
-To connect the **encoders** to their respective **controllers**, the **adapter** pattern will be required to resolve the mismatch between the exchanged data.
-
-The **speaker** component manages verbal communication between the robot and nearby people through speakers. It receives messages from the various connected components and vocally reproduces them using its internal module.
-
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+Two ports belong to the error handler.
 
 .. rubric:: Implementation through patterns
 
-The **speaker** component must be implemented using the **singleton** pattern since the robot has only one audio output device. Multiple instances of the speaker class would create conflicts in accessing the shared hardware resource, as different system components might attempt to use the single physical speaker simultaneously.
+* **Motor controllers** → **singleton**.  
+* **Encoder to controller** link → **adapter**.
 
-
-The **gripper** component manages the end part of the robotic arm. It includes the components necessary for movement, namely the **encoder**, **controller**, and **motor**, along with a **force sensor** connected to the controller.
-
-This component uses the :doc:`perception<perception>` module to track the movement of the object and monitor its position within the gripper.
-| Actions are issued to the controller through the **trajectory planning** component inside the :doc:`navigation<navigation>`.
-
-As we can observe, there are two ports that are not connected to any internal component, as these serve as the input and output for the :doc:`error handler <error_handler>` component, which will manage any recovery procedures.
+The **speaker** component handles verbal output, replaying messages generated by other modules.
 
 .. rubric:: Implementation through patterns
 
-The **motor controller** is implemented using the **singleton** pattern, as there must be at most one instance per controller; otherwise, consistency issues could arise, since there is only one physical controller.
+* **Speaker** → **singleton**.
 
-Furthermore, to connect the **encoder** to the **controller**, the **adapter** pattern must be used to handle the mismatch between their different data types. Similarly, the **force sensor**, which the controller uses to regulate the gripper's force, is also integrated using the **adapter** pattern, as it exchanges a different type of data compared to the controller. The use of the adapter allows the controller to properly handle the incoming data.
+The **gripper** manages the end effector:
 
+* **Encoder**, **controller**, **motor**, and **force sensor**,
+* Closed‑loop grasping monitored via **perception**,
+* Commands received from **trajectory planning**.
 
+Two ports lead to the error handler.
 
+.. rubric:: Implementation through patterns
 
+* **Motor controller** → **singleton**.  
+* **Encoder** and **force sensor** interfaces → **adapter**.
 
 
 
