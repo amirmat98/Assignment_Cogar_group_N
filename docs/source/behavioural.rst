@@ -88,7 +88,7 @@ The chosen scenario determines how the *Human Command Monitoring* loop (below)
 
 
 Human Command Monitoring & Conflict Resolution
----------------------------------------------
+-------------------------------------------------
 
 Loop runs continuously:
 
@@ -114,6 +114,13 @@ Loop runs continuously:
 - Accepts valid commands → updates New Recipe History (E) and confirms with *“OK”*.
 
 
+Dummy Implementation
+---------------------------------------------------
+
+.. automodule:: human_command.scripts.human_command
+   :members:
+
+
 Recipe Tracking & Execution History Loop
 ---------------------------------------
 
@@ -126,7 +133,14 @@ Triggered when *Update Recipe* completes.
 5. **Command Recipe History** – Runs in parallel when user inserts new tasks; merges them into *New Recipe History* (E).
 
 
-Action Planning Cycle (100 ms)
+Dummy Implementation
+---------------------------------------------------
+
+.. automodule:: recipe_tracking.scripts.recipe_tracking
+   :members:
+
+
+Action Planning Cycle
 ------------------------------
 
 Every tick:
@@ -139,6 +153,12 @@ Every tick:
 #. Else:
    * Signal *Update On‑Execution Actions* so the tracker logs the new step.
    * Signal *High Level Action* to execute the command and update Robot State.
+
+Dummy Implementation
+----------------------------------------------------
+
+.. automodule:: action_planning.scripts.action_planning
+   :members:
 
 
 High‑Level Action Execution

@@ -58,7 +58,8 @@ __all__ = ["ActionPlanningNode", "RecipeStep"]
 
 @dataclass
 class RecipeStep:
-    """A lightweight container for a single recipe instruction.
+    """
+    A lightweight container for a single recipe instruction.
 
     Parameters
     ----------
